@@ -1,0 +1,474 @@
+<template>
+  <div class="min-h-screen bg-gray-50">
+    <!-- Header Section -->
+    <div class="bg-white shadow-sm border-b border-gray-200 rounded-2xl">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Tenant Dashboard</h1>
+            <p class="text-gray-600 mt-1">
+              Manage your temple registrations and applications
+              <span v-if="tenantId" class="text-indigo-600 font-medium"> (Tenant ID: {{ tenantId }})</span>
+            </p>
+          </div>
+          <div class="flex items-center space-x-4">
+            <div class="bg-indigo-50 px-4 py-2 rounded-lg border border-indigo-200">
+              <span class="text-indigo-800 font-medium">{{ userStore.user?.name || userStore.user?.fullName }}</span>
+              <span class="text-indigo-600 text-sm ml-2">({{ userRoleDisplay }})</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- Welcome Banner with Approval Status -->
+      <div class="bg-gradient-to-r from-indigo-600 to-indigo-800 rounded-2xl shadow-lg p-8 mb-8 text-white">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+          <div class="flex-1">
+            <h2 class="text-3xl font-bold mb-2">Welcome back!</h2>
+            <p class="text-indigo-100 text-lg mb-4">
+              {{ isTenantUser ? 'Manage your temple applications and track their approval status' : 'View and access temples for this tenant' }}
+            </p>
+          </div>
+          
+          <div class="mt-6 md:mt-0" v-if="isTenantUser">
+            <router-link 
+              to="/tenant/entities/create"
+              class="inline-flex items-center bg-white text-indigo-600 px-6 py-3 rounded-xl font-semibold hover:bg-indigo-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+            >
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+              </svg>
+              Create New Temple
+            </router-link>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+          <div class="flex items-center">
+            <div class="p-3 bg-indigo-100 rounded-xl">
+              <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h4M9 7h6m-6 4h6m-6 4h6"/>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm text-gray-600">Total Temples</p>
+              <p class="text-2xl font-bold text-gray-900">{{ templeStore.temples.length }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+          <div class="flex items-center">
+            <div class="p-3 bg-green-100 rounded-xl">
+              <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm text-gray-600">Approved</p>
+              <p class="text-2xl font-bold text-gray-900">{{ approvedTemplesCount }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+          <div class="flex items-center">
+            <div class="p-3 bg-amber-100 rounded-xl">
+              <svg class="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm text-gray-600">Pending</p>
+              <p class="text-2xl font-bold text-gray-900">{{ pendingTemplesCount }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Temple List Section -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="p-6 border-b border-gray-200">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 class="text-xl font-bold text-gray-900">{{ isTenantUser ? 'Your Temples' : 'Available Temples' }}</h3>
+              <p class="text-gray-600 mt-1">
+                {{ isTenantUser ? 'Manage and track your temple applications' : 'Select a temple to access its dashboard' }}
+              </p>
+            </div>
+            <div class="mt-4 sm:mt-0" v-if="isTenantUser">
+              <router-link 
+                to="/tenant/entities/create"
+                class="inline-flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors duration-200 font-medium"
+              >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                Add Temple
+              </router-link>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div v-if="isLoading" class="p-12 text-center">
+          <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mx-auto"></div>
+          <p class="mt-4 text-gray-600">Loading temples...</p>
+        </div>
+
+        <!-- Temples List -->
+        <div v-else-if="templeStore.temples.length > 0" class="divide-y divide-gray-200">
+          <div 
+            v-for="temple in templeStore.temples" 
+            :key="temple.id"
+            class="p-6 hover:bg-gray-50 transition-colors duration-150"
+          >
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+              <!-- Temple Info -->
+              <div class="flex-1">
+                <div class="flex items-center mb-2">
+                  <h4 class="text-lg font-semibold text-gray-900 mr-3">{{ temple.name }}</h4>
+                  <TempleApprovalStatus :status="temple.status" />
+                </div>
+                <p class="text-gray-600 mb-2">{{ formatAddress(temple.address) }}</p>
+                <div class="flex flex-wrap items-center text-sm text-gray-500 gap-4">
+                  <span class="flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    Created: {{ formatDate(temple.createdAt) }}
+                  </span>
+                  <span class="flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    {{ temple.city }}, {{ temple.state }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <div class="mt-4 lg:mt-0 flex items-center space-x-3">
+                <button
+                  @click="viewTemple(temple)"
+                  class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200"
+                >
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                  </svg>
+                  View
+                </button>
+                
+                <!-- Only show Edit button for tenant users -->
+                <button
+                  v-if="isTenantUser"
+                  @click="editTemple(temple)"
+                  class="inline-flex items-center px-4 py-2 border border-indigo-300 rounded-lg text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors duration-200"
+                >
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                  </svg>
+                  Edit
+                </button>
+
+                <!-- Access or Manage Button - Always show for monitoring/standard users -->
+                <!-- Access or Manage Button - Only enabled for approved temples when user is a tenant -->
+<button
+  @click="manageTemple(temple)"
+  :disabled="isTenantUser && !isTempleApproved(temple)"
+  :class="[
+    'inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200',
+    (isTenantUser && !isTempleApproved(temple))
+      ? 'bg-gray-400 text-gray-100 cursor-not-allowed'
+      : 'bg-indigo-600 text-white hover:bg-indigo-700'
+  ]"
+  :title="(isTenantUser && !isTempleApproved(temple)) ? 'Temple needs approval before it can be managed' : ''"
+>
+  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"/>
+  </svg>
+  {{ isTenantUser ? 'Manage' : 'Access Dashboard' }}
+</button>
+              </div>
+            </div>
+
+            <!-- Rejection Notes (if rejected) - Only show for tenant users -->
+            <div v-if="isTenantUser && isTempleRejected(temple) && temple.adminNotes" class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div class="flex items-start">
+                <svg class="w-5 h-5 text-red-400 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div>
+                  <h5 class="text-sm font-medium text-red-800 mb-1">Admin Notes:</h5>
+                  <p class="text-sm text-red-700">{{ temple.adminNotes }}</p>
+                  <button
+                    @click="reUploadDocuments(temple)"
+                    class="mt-2 text-sm text-red-600 hover:text-red-800 font-medium underline"
+                  >
+                    Re-upload Documents
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else class="p-12 text-center">
+          <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h4M9 7h6m-6 4h6m-6 4h6"/>
+          </svg>
+          <h3 class="text-lg font-medium text-gray-900 mb-2">No temples registered yet</h3>
+          <p class="text-gray-600 mb-6">
+            {{ isTenantUser ? 'Get started by creating your first temple registration' : 'No temples are available for this tenant' }}
+          </p>
+          <router-link 
+            v-if="isTenantUser"
+            to="/tenant/entities/create"
+            class="inline-flex items-center bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors duration-200 font-medium"
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+            </svg>
+            Create Your First Temple
+          </router-link>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, watch, ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useTempleStore } from '@/stores/temple'
+import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
+import TempleApprovalStatus from '@/components/temple/TempleApprovalStatus.vue'
+
+const router = useRouter()
+const route = useRoute()
+const templeStore = useTempleStore()
+const userStore = useAuthStore()
+const { showToast } = useToast()
+
+// Loading state
+const isLoading = ref(true)
+
+// Status check helper functions
+const isTempleApproved = (temple) => {
+  const status = (temple.status || '').toString().toLowerCase()
+  return status === 'approved'
+}
+
+const isTempleRejected = (temple) => {
+  const status = (temple.status || '').toString().toLowerCase()
+  return status === 'rejected'
+}
+
+const isTemplePending = (temple) => {
+  const status = (temple.status || '').toString().toLowerCase()
+  return status === 'pending'
+}
+
+// User status helper computed properties
+const isUserApproved = computed(() => {
+  const status = (userStore.user?.status || '').toString().toLowerCase()
+  return status === 'approved'
+})
+
+const isUserRejected = computed(() => {
+  const status = (userStore.user?.status || '').toString().toLowerCase()
+  return status === 'rejected'
+})
+
+const isUserPending = computed(() => {
+  const status = (userStore.user?.status || '').toString().toLowerCase()
+  return status === 'pending' || !status
+})
+
+// Role-based checks
+const isTenantUser = computed(() => {
+  const role = (userStore.userRole || '').toLowerCase()
+  return role === 'tenant' || role === 'templeadmin'
+})
+
+const isMonitoringUser = computed(() => {
+  const role = (userStore.userRole || '').toLowerCase()
+  return role === 'monitoring_user' || role === 'monitoringuser'
+})
+
+const isStandardUser = computed(() => {
+  const role = (userStore.userRole || '').toLowerCase()
+  return role === 'standard_user' || role === 'standarduser'
+})
+
+// Formatted role display
+const userRoleDisplay = computed(() => {
+  if (isTenantUser.value) return 'Tenant'
+  if (isMonitoringUser.value) return 'Monitoring User'
+  if (isStandardUser.value) return 'Standard User'
+  return userStore.userRole || 'User'
+})
+
+// Get the tenant ID from route params or auth store
+const tenantId = computed(() => {
+  // First try to get from route params
+  if (route.params.tenantId) {
+    console.log('Using tenantId from route params:', route.params.tenantId)
+    return route.params.tenantId
+  }
+  
+  // For monitoring/standard users, use assigned tenant ID
+  if ((isMonitoringUser.value || isStandardUser.value) && userStore.assignedTenantId) {
+    console.log('Using assigned tenant ID:', userStore.assignedTenantId)
+    return userStore.assignedTenantId
+  }
+  
+  // Fallback to auth store
+  const authTenantId = userStore.user?.id || localStorage.getItem('current_tenant_id')
+  console.log('Using tenantId from auth store:', authTenantId)
+  return authTenantId
+})
+
+// Reset temple data to ensure clean state
+const resetTempleData = () => {
+  // Clear any cached temple data
+  localStorage.removeItem('temple_data')
+  localStorage.removeItem('temple_cache')
+  // Optional: Clear temples array if your store supports it
+  if (typeof templeStore.clearTempleData === 'function') {
+    templeStore.clearTempleData()
+  }
+}
+
+// Computed properties
+const approvedTemplesCount = computed(() => {
+  return templeStore.temples.filter(temple => isTempleApproved(temple)).length
+})
+
+const pendingTemplesCount = computed(() => {
+  return templeStore.temples.filter(temple => isTemplePending(temple)).length
+})
+
+// Methods
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A'
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  })
+}
+
+const viewTemple = (temple) => {
+  // Navigate to temple view/details page
+  router.push(`/tenant/entities/${temple.id}`)
+}
+
+const editTemple = (temple) => {
+  // Navigate to temple edit page
+  router.push(`/tenant/entities/${temple.id}/edit`)
+}
+
+const manageTemple = (temple) => {
+  // Navigate to temple management dashboard
+  router.push(`/entity/${temple.id}/dashboard`)
+}
+
+const reUploadDocuments = (temple) => {
+  // Navigate to document re-upload page
+  router.push(`/tenant/entities/${temple.id}/documents`)
+}
+
+// Watch for changes to tenantId and reload data if it changes
+watch(tenantId, async (newValue, oldValue) => {
+  if (newValue && newValue !== oldValue) {
+    console.log(`TenantId changed from ${oldValue} to ${newValue}, reloading data...`)
+    await loadTempleData()
+  }
+})
+
+// Load temple data for the current tenant
+// Load temple data for the current tenant
+const loadTempleData = async () => {
+  isLoading.value = true;
+  
+  if (!tenantId.value) {
+    console.warn('No tenant ID available, cannot load temples');
+    isLoading.value = false;
+    return;
+  }
+  
+  try {
+    // Reset temple data to ensure clean state
+    resetTempleData();
+    
+    // Check if this is a SuperAdmin viewing a tenant's temples
+    const selectedTenantId = localStorage.getItem('selected_tenant_id');
+    console.log('Loading temples for tenant ID:', tenantId.value, 'Selected tenant ID:', selectedTenantId);
+    
+    if (selectedTenantId) {
+      // Use the specialized method for SuperAdmin tenant view
+      console.log('Using fetchDirectByTenant for SuperAdmin tenant view');
+      await templeStore.fetchDirectByTenant(selectedTenantId);
+    } else {
+      // Regular temple fetch for non-SuperAdmin users
+      console.log('Using standard fetchTemples');
+      await templeStore.fetchTemples(tenantId.value);
+    }
+  } catch (error) {
+    console.error('Error loading temple data:', error);
+    showToast('Failed to load temple data. Please try again.', 'error');
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+const formatAddress = (address) => {
+  if (!address) return ''
+  
+  try {
+    const addr = typeof address === 'string' ? JSON.parse(address) : address
+    if (!addr) return ''
+    
+    const parts = [
+      addr.street,
+      addr.city,
+      addr.state,
+      addr.pincode,
+      addr.country
+    ].filter(Boolean)
+    
+    return parts.join(', ')
+  } catch {
+    return address || ''
+  }
+}
+
+// Lifecycle
+onMounted(async () => {
+  console.log('TenantDashboard mounted with tenantId:', tenantId.value)
+  
+  // Load temples for current tenant
+  await loadTempleData()
+  
+  // Check if tenant is pending approval
+  if (isTenantUser.value) {
+    if (isUserPending.value) {
+      // Show notification about pending status
+      showToast('Your account is pending approval from the administrator.', 'info')
+    } else if (isUserRejected.value) {
+      showToast('Your account has been rejected. Please contact support.', 'error')
+    }
+  }
+})
+</script>
