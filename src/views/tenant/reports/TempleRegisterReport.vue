@@ -81,28 +81,8 @@
 
         <div class="p-6">
           <!-- Temple Selection -->
-          <div class="mb-6">
-            <label class="block text-gray-700 font-medium mb-2">Select Temple</label>
-            <div class="relative">
-              <select 
-                v-model="selectedTemple" 
-                @change="onTempleChange"
-                :disabled="loading"
-                class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              >
-                <option value="all">All Temples</option>
-                <option v-for="temple in filteredTemples" :key="temple.id" :value="temple.id">
-                  {{ temple.name }}
-                </option>
-              </select>
-            </div>
-            <div v-if="filteredTemples.length === 0 && !loading" class="mt-2 text-sm text-amber-600">
-              No temples found for tenant ID {{ effectiveTenantId }}. Please verify tenant access.
-            </div>
-            <div v-else class="mt-2 text-sm text-gray-500">
-              Found {{ filteredTemples.length }} temples for tenant {{ effectiveTenantId }}
-            </div>
-          </div>
+        
+          
 
           <!-- Filter Section -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">

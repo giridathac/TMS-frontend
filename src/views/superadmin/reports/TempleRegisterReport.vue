@@ -22,10 +22,10 @@
             <p class="text-gray-600 mt-1">
               Download registration data for your temples
               <span v-if="fromSuperadmin && tenantIds.length > 1" class="text-indigo-600 font-medium">
-                (Multiple Tenants Selected)
+                (Multiple Tenants Selected: {{ tenantIds.length }})
               </span>
-              <span v-else-if="tenantId" class="text-indigo-600 font-medium">
-                (Tenant ID: {{ tenantId }})
+              <span v-else-if="effectiveTenantId" class="text-indigo-600 font-medium">
+                (Tenant ID: {{ effectiveTenantId }})
               </span>
             </p>
           </div>
@@ -34,6 +34,37 @@
               <span class="text-indigo-800 font-medium">{{ userStore.user?.name || 'Tenant User' }}</span>
               <span class="text-indigo-600 text-sm ml-2">{{ fromSuperadmin ? '(Super Admin)' : '(Tenant)' }}</span>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div v-if="loading || isDownloading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 flex items-center space-x-3">
+        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+        <span class="text-gray-900 font-medium">{{ isDownloading ? 'Downloading...' : 'Loading data...' }}</span>
+      </div>
+    </div>
+
+    <!-- Error Alert -->
+    <div v-if="errorMessage" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+      <div class="bg-red-50 border border-red-200 rounded-md p-4">
+        <div class="flex">
+          <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+          </svg>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-red-800">Error</h3>
+            <p class="mt-1 text-sm text-red-700">{{ errorMessage }}</p>
+          </div>
+          <div class="ml-auto pl-3">
+            <button @click="clearError" class="text-red-400 hover:text-red-500">
+              <span class="sr-only">Dismiss</span>
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -50,24 +81,8 @@
 
         <div class="p-6">
           <!-- Temple Selection -->
-          <div class="mb-6">
-            <label class="block text-gray-700 font-medium mb-2">Select Temple</label>
-            <div class="relative">
-              <select 
-                v-model="selectedTemple" 
-                @change="onTempleChange"
-                class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="all">All Temples</option>
-                <option v-for="temple in filteredTemples" :key="temple.id" :value="temple.id">
-                  {{ temple.name }}
-                </option>
-              </select>
-            </div>
-            <div v-if="debugMode" class="mt-2 text-xs text-gray-500">
-              Found {{ filteredTemples.length }} temples for tenant(s): {{ tenantIds.join(', ') }}
-            </div>
-          </div>
+        
+          
 
           <!-- Filter Section -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -79,7 +94,7 @@
                   v-for="filter in timeFilters" 
                   :key="filter.value"
                   @click="setActiveFilter(filter.value)"
-                  :disabled="isDownloading"
+                  :disabled="loading"
                   class="px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   :class="activeFilter === filter.value ? 
                     'bg-indigo-600 text-white' : 
@@ -98,7 +113,7 @@
                   v-for="status in statusFilters" 
                   :key="status.value"
                   @click="setActiveStatus(status.value)"
-                  :disabled="isDownloading"
+                  :disabled="loading"
                   class="px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   :class="activeStatus === status.value ? 
                     'bg-indigo-600 text-white' : 
@@ -118,7 +133,7 @@
                 <input 
                   type="date" 
                   v-model="startDate"
-                  :disabled="isDownloading"
+                  :disabled="loading"
                   :max="endDate"
                   class="w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
@@ -128,7 +143,7 @@
                 <input 
                   type="date" 
                   v-model="endDate"
-                  :disabled="isDownloading"
+                  :disabled="loading"
                   :min="startDate"
                   :max="today"
                   class="w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -149,7 +164,7 @@
                 <div class="relative">
                   <select 
                     v-model="selectedFormat" 
-                    :disabled="isDownloading"
+                    :disabled="loading"
                     class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option v-for="format in formats" :key="format.value" :value="format.value">
@@ -161,7 +176,7 @@
                 <!-- Download Button -->
                 <button 
                   @click="downloadReport"
-                  :disabled="isDownloading || !isFormValid"
+                  :disabled="loading || !isFormValid"
                   class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                 >
                   <svg v-if="isDownloading" class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -173,21 +188,6 @@
                   </svg>
                   {{ isDownloading ? 'Downloading...' : 'Download' }}
                 </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Error Display -->
-          <div v-if="errorMessage" class="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
-            <div class="flex">
-              <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                </svg>
-              </div>
-              <div class="ml-3">
-                <h3 class="text-sm font-medium text-red-800">Error</h3>
-                <p class="mt-1 text-sm text-red-700">{{ errorMessage }}</p>
               </div>
             </div>
           </div>
@@ -223,6 +223,11 @@
               <span class="font-medium mr-1">Format:</span>
               {{ getFormatLabel(selectedFormat) }}
             </div>
+            <!-- Current Tenant ID Display -->
+            <div class="inline-flex items-center px-3 py-1.5 rounded-full text-sm bg-green-100 text-green-800">
+              <span class="font-medium mr-1">Tenant ID:</span>
+              {{ effectiveTenantId }}
+            </div>
           </div>
 
           <p class="mt-4 text-sm text-gray-600">
@@ -241,6 +246,8 @@ import { useTempleStore } from '@/stores/temple';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/composables/useToast';
 import ReportsService from '@/services/reports.service';
+import templeService from '@/services/temple.service';
+import api from '@/plugins/axios';
 
 // Composables
 const route = useRoute();
@@ -258,16 +265,15 @@ const startDate = ref('');
 const endDate = ref('');
 const isDownloading = ref(false);
 const errorMessage = ref('');
-const allTemples = ref([]); // Store temples from all tenants
-const debugMode = ref(true); // Enable for troubleshooting
+const loading = ref(false);
 
 // Initialize dates
 const initializeDates = () => {
   const today = new Date();
   const weekAgo = new Date();
   weekAgo.setDate(today.getDate() - 7);
-  endDate.value = today.toISOString().split('T');
-  startDate.value = weekAgo.toISOString().split('T');
+  endDate.value = today.toISOString().split('T')[0];
+  startDate.value = weekAgo.toISOString().split('T')[0];
 };
 
 // Filter options
@@ -291,30 +297,56 @@ const formats = [
   { label: 'Excel', value: 'excel' },
 ];
 
-// Computed properties
-const tenantId = computed(() => {
-  if (route.query.tenants) {
-    const tenantIdArray = route.query.tenants.split(',');
-    return tenantIdArray;
-  }
-  return route.params.tenantId || userStore.user?.id || localStorage.getItem('current_tenant_id');
-});
-
 // Check for tenants parameter from superadmin
 const fromSuperadmin = computed(() => route.query.from === 'superadmin');
+
 const tenantIds = computed(() => {
   if (route.query.tenants) {
-    return route.query.tenants.split(',').map(id => id.trim());
+    return route.query.tenants.split(',').filter(id => id && id.trim());
   }
-  return [tenantId.value]; // Default to current tenant only
+  return [];
+});
+
+// Fix the effective tenant ID computation
+const effectiveTenantId = computed(() => {
+  // Priority 1: If coming from superadmin with single tenant
+  if (fromSuperadmin.value && tenantIds.value.length === 1) {
+    return tenantIds.value[0];
+  }
+  
+  // Priority 2: Current route tenant parameter
+  if (route.params.tenantId) {
+    return route.params.tenantId;
+  }
+  
+  // Priority 3: User's assigned tenant from auth store
+  if (userStore.user?.assignedTenantId) {
+    return userStore.user.assignedTenantId.toString();
+  }
+  
+  // Priority 4: Extract from localStorage tenant header
+  const currentTenantId = localStorage.getItem('current_tenant_id');
+  if (currentTenantId) {
+    return currentTenantId;
+  }
+  
+  // Priority 5: Extract from axios default headers
+  if (api.defaults.headers.common['X-Tenant-ID']) {
+    const headerTenantId = api.defaults.headers.common['X-Tenant-ID'];
+    return headerTenantId.toString();
+  }
+  
+  // Priority 6: User ID as fallback (based on your working activities report)
+  if (userStore.user?.id) {
+    return userStore.user.id.toString();
+  }
+  
+  console.warn('No tenant ID found, using fallback');
+  return null;
 });
 
 const today = computed(() => {
-  return new Date().toISOString().split('T');
-});
-
-const entityId = computed(() => {
-  return selectedTemple.value === 'all' ? 'all' : selectedTemple.value;
+  return new Date().toISOString().split('T')[0];
 });
 
 const isFormValid = computed(() => {
@@ -324,37 +356,16 @@ const isFormValid = computed(() => {
   return true;
 });
 
-// Track the fully-resolved selected temple object to derive its tenant
-const selectedTempleObj = computed(() => {
-  const idStr = String(selectedTemple.value);
-  const fromAll = allTemples.value.find(t => String(t.id) === idStr);
-  if (fromAll) return fromAll;
-  return templeStore.temples.find(t => String(t.id) === idStr);
-});
-
 // Filtered temples for dropdown (approved/active only)
 const filteredTemples = computed(() => {
-  let templesForDropdown = [];
-  if (fromSuperadmin.value && tenantIds.value.length > 1) {
-    templesForDropdown = allTemples.value;
-  } else {
-    templesForDropdown = templeStore.temples;
+  if (!templeStore.temples || !Array.isArray(templeStore.temples)) {
+    return [];
   }
-
-  if (!fromSuperadmin.value) {
-    return templesForDropdown.filter(temple => {
-      const status = (temple.status || '').toLowerCase();
-      return status === 'approved' || status === 'active';
-    });
-  }
-
-  return templesForDropdown.filter(temple => {
-    const createdBy = String(temple.created_by || temple.createdBy || '');
-    const templeTenantId = String(temple.tenant_id || temple.tenantId || temple.sourceTenantId || '');
-    const belongsToSelectedTenant = tenantIds.value.some(tid => createdBy === tid || templeTenantId === tid);
+  
+  return templeStore.temples.filter(temple => {
+    if (!temple) return false;
     const status = (temple.status || '').toLowerCase();
-    const isApproved = status === 'approved' || status === 'active';
-    return belongsToSelectedTenant && isApproved;
+    return status === 'approved' || status === 'active';
   });
 });
 
@@ -368,8 +379,8 @@ const setActiveFilter = (filter) => {
   else if (filter === 'monthly') start.setDate(today.getDate() - 30);
   else if (filter === 'yearly') start.setDate(today.getDate() - 365);
   if (filter !== 'custom') {
-    startDate.value = start.toISOString().split('T');
-    endDate.value = today.toISOString().split('T');
+    startDate.value = start.toISOString().split('T')[0];
+    endDate.value = today.toISOString().split('T')[0];
   }
 };
 
@@ -388,11 +399,8 @@ const clearError = () => {
 
 const getTempleName = (templeId) => {
   if (templeId === 'all') return 'All Temples';
-  const idStr = String(templeId);
-  const inAll = allTemples.value.find(t => String(t.id) === idStr);
-  if (inAll) return inAll.name;
-  const t = templeStore.temples.find(t => String(t.id) === idStr);
-  return t ? t.name : 'Unknown Temple';
+  const temple = templeStore.temples.find(t => t?.id?.toString() === templeId?.toString());
+  return temple ? temple.name : 'Unknown Temple';
 };
 
 const getTimeFilterLabel = (filter) => {
@@ -410,98 +418,202 @@ const getFormatLabel = (format) => {
   return found ? found.label : 'Unknown';
 };
 
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch (error) {
+    return dateString || '';
+  }
+};
+
 // Build robust parameters for ReportsService
 const buildReportParams = () => {
-  const isSuperAdmin = 
-    userStore.user?.roleId === 1 || 
-    userStore.user?.role === 'superadmin' || 
-    fromSuperadmin.value || 
-    route.path.includes('/superadmin/');
-
-  // Resolve the tenant owning the selected temple (if any)
-  let selectedTempleTenant = null;
-  if (selectedTemple.value !== 'all' && selectedTempleObj.value) {
-    selectedTempleTenant = String(
-      selectedTempleObj.value.sourceTenantId ||
-      selectedTempleObj.value.tenant_id ||
-      selectedTempleObj.value.tenantId ||
-      selectedTempleObj.value.created_by ||
-      selectedTempleObj.value.createdBy ||
-      ''
-    );
-  }
-
-  // Multi-tenant (superadmin selecting multiple tenants)
-  if (isSuperAdmin && tenantIds.value.length > 1) {
-    // If a single temple is chosen, scope both entityId (for path) and entityIds (for compatibility) to that temple’s tenant
-    if (selectedTemple.value !== 'all' && selectedTempleTenant) {
-      const params = {
-        entityId: selectedTempleTenant,           // helps service fill /superadmin/tenants/{tenantId}/...
-        entityIds: [selectedTempleTenant],        // preserved for any bulk code paths
-        tenantId: selectedTempleTenant,           // extra hint in case service checks this
-        dateRange: activeFilter.value,
-        format: selectedFormat.value,
-        templeId: selectedTemple.value,
-        isSuperAdmin: true,
-      };
-      if (activeStatus.value !== 'all') params.status = activeStatus.value;
-      if (activeFilter.value === 'custom') {
-        params.startDate = startDate.value;
-        params.endDate = endDate.value;
-      }
-      return params;
+  try {
+    if (!effectiveTenantId.value) {
+      throw new Error('No valid tenant ID available for report generation');
     }
 
-    // All temples across selected tenants
     const params = {
-      entityIds: tenantIds.value.map(String),
-      dateRange: activeFilter.value,
-      format: selectedFormat.value,
-      templeId: 'all',
-      isSuperAdmin: true,
+      dateRange: activeFilter.value || 'weekly',
+      format: selectedFormat.value || 'pdf',
+      startDate: startDate.value,
+      endDate: endDate.value,
+      isSuperAdmin: fromSuperadmin.value,
+      tenantId: effectiveTenantId.value
     };
-    if (activeStatus.value !== 'all') params.status = activeStatus.value;
-    if (activeFilter.value === 'custom') {
-      params.startDate = startDate.value;
-      params.endDate = endDate.value;
-    }
-    return params;
-  }
 
-  // Single-tenant (either superadmin with one tenant, or tenant user)
-  const params = {
-    entityId: String(tenantId.value),
-    dateRange: activeFilter.value,
-    format: selectedFormat.value,
-    templeId: selectedTemple.value === 'all' ? 'all' : selectedTemple.value,
-    isSuperAdmin,
-  };
-  if (activeStatus.value !== 'all') params.status = activeStatus.value;
-  if (activeFilter.value === 'custom') {
-    params.startDate = startDate.value;
-    params.endDate = endDate.value;
+    // Set entity ID based on context
+    if (fromSuperadmin.value) {
+      if (tenantIds.value.length > 1) {
+        params.entityIds = tenantIds.value;
+        params.entityId = tenantIds.value[0]; // Use first as primary
+      } else {
+        params.entityId = effectiveTenantId.value;
+      }
+    } else {
+      params.entityId = effectiveTenantId.value;
+    }
+
+    // CRITICAL: Set templeId properly
+    // If "All Temples" is selected, set to 'all' (the service will handle not sending it to backend)
+    // If specific temple is selected, use the temple ID
+    if (selectedTemple.value === 'all') {
+      params.templeId = 'all'; // Service layer will omit this from query params
+    } else {
+      params.templeId = selectedTemple.value.toString();
+    }
+
+    // Status filter
+    if (activeStatus.value !== 'all') {
+      params.status = activeStatus.value;
+    }
+
+    console.log('Built temple register report params:', params);
+    return params;
+  } catch (error) {
+    console.error('Error building report params:', error);
+    throw error;
   }
-  return params;
+};
+
+const fetchTemples = async () => {
+  loading.value = true;
+  errorMessage.value = '';
+  
+  try {
+    if (!effectiveTenantId.value) {
+      throw new Error('No tenant ID available to fetch temples');
+    }
+
+    console.log('Fetching temples for tenant ID:', effectiveTenantId.value);
+    
+    // Clear existing temples first
+    templeStore.clearTempleData();
+    
+    // For superadmin with multiple tenants
+    if (fromSuperadmin.value && tenantIds.value.length > 1) {
+      console.log(`Fetching temples for ${tenantIds.value.length} tenants:`, tenantIds.value);
+      const allTemples = [];
+      
+      for (const tenantId of tenantIds.value) {
+        try {
+          const temples = await fetchTemplesForTenant(tenantId);
+          allTemples.push(...temples);
+        } catch (err) {
+          console.warn(`Failed to fetch temples for tenant ${tenantId}:`, err);
+        }
+      }
+      
+      templeStore.temples = allTemples;
+      console.log(`Set ${templeStore.temples.length} total temples for ${tenantIds.value.length} tenants`);
+    } 
+    // Single tenant case
+    else {
+      const tenantId = effectiveTenantId.value;
+      console.log(`Fetching temples for single tenant ${tenantId}`);
+      
+      // Use the working approach - direct API call with proper filtering
+      try {
+        const response = await api.get(`/entities`);
+        let allEntities = [];
+        
+        if (response.data && Array.isArray(response.data)) {
+          allEntities = response.data;
+        } else if (response.data && Array.isArray(response.data.data)) {
+          allEntities = response.data.data;
+        }
+        
+        // Filter entities by the correct tenant ID
+        const filteredTemples = allEntities.filter(temple => {
+          return String(temple.created_by) === String(tenantId) || 
+                 String(temple.tenant_id) === String(tenantId);
+        });
+        
+        console.log(`Filtered ${filteredTemples.length} temples from ${allEntities.length} total entities for tenant ${tenantId}`);
+        
+        // Set the filtered temples in the store
+        templeStore.temples = filteredTemples.map(temple => templeService.normalizeTempleData(temple));
+        
+        if (templeStore.temples.length === 0) {
+          console.warn(`No temples found for tenant ID ${tenantId}`);
+          errorMessage.value = `No temples found for tenant ID ${tenantId}. Please verify tenant access.`;
+        }
+      } catch (apiError) {
+        console.error('Error fetching entities directly:', apiError);
+        
+        // Fallback to store method
+        console.log('Using store method as fallback');
+        try {
+          if (fromSuperadmin.value) {
+            await templeStore.fetchTemplesForSuperAdmin(tenantId);
+          } else {
+            await templeStore.fetchTemples(tenantId);
+          }
+        } catch (fallbackError) {
+          console.error('Fallback method also failed:', fallbackError);
+          errorMessage.value = `Failed to load temples: ${fallbackError.message}`;
+        }
+      }
+    }
+    
+    console.log(`Successfully loaded ${templeStore.temples.length} temples for tenant ${effectiveTenantId.value}`);
+    
+  } catch (err) {
+    console.error('Error in fetchTemples:', err);
+    errorMessage.value = `Failed to load temples: ${err.message}`;
+    showToast(`Failed to load temple data: ${err.message}`, 'error');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Helper function to fetch temples for a single tenant
+const fetchTemplesForTenant = async (tenantId) => {
+  try {
+    console.log(`Fetching temples for tenant ${tenantId}`);
+    
+    const response = await api.get('/entities');
+    let allEntities = [];
+    
+    if (response.data && Array.isArray(response.data)) {
+      allEntities = response.data;
+    } else if (response.data && Array.isArray(response.data.data)) {
+      allEntities = response.data.data;
+    }
+    
+    // Filter entities by tenant ID using multiple possible fields
+    const temples = allEntities.filter(temple => 
+      String(temple.created_by) === String(tenantId) || 
+      String(temple.tenant_id) === String(tenantId)
+    );
+    
+    console.log(`Found ${temples.length} temples for tenant ${tenantId}`);
+    return temples.map(temple => templeService.normalizeTempleData(temple));
+    
+  } catch (err) {
+    console.error(`Error fetching temples for tenant ${tenantId}:`, err);
+    return [];
+  }
 };
 
 const downloadReport = async () => {
   if (isDownloading.value || !isFormValid.value) return;
+  
   clearError();
   isDownloading.value = true;
 
   try {
+    if (!effectiveTenantId.value) {
+      throw new Error('No valid tenant ID available for download');
+    }
+
     const params = buildReportParams();
-
-    // Ensure templeId reflects dropdown precisely
-    if (selectedTemple.value !== 'all') {
-      params.templeId = selectedTemple.value;
-    }
-
-    // Ensure tenant header for tenant users
-    if (!fromSuperadmin.value) {
-      params.entityId = String(tenantId.value);
-      params.headers = { 'X-Tenant-ID': String(tenantId.value) };
-    }
 
     const validation = ReportsService.validateReportParams({
       ...params,
@@ -511,8 +623,9 @@ const downloadReport = async () => {
       throw new Error(validation.errors.join(', '));
     }
 
+    console.log('Downloading temple register report with params:', params);
     const result = await ReportsService.downloadTempleRegisteredReport(params);
-    showToast(`Report downloaded successfully: ${result.filename}`, 'success');
+    showToast(`Temple Register Report downloaded successfully: ${result.filename || 'report.pdf'}`, 'success');
   } catch (error) {
     console.error('Download failed:', error);
     let errorMsg = 'Failed to download report. Please try again.';
@@ -524,6 +637,8 @@ const downloadReport = async () => {
       errorMsg = 'You do not have permission to download this report.';
     } else if (error.response?.status === 400) {
       errorMsg = 'Invalid report parameters. Please check your selections.';
+    } else if (error.message) {
+      errorMsg = error.message;
     }
     errorMessage.value = errorMsg;
     showToast(`Download failed: ${errorMsg}`, 'error');
@@ -532,154 +647,55 @@ const downloadReport = async () => {
   }
 };
 
-// Deduplicate by ID
-const deduplicateTemplesByID = (temples) => {
-  const uniqueTemples = [];
-  const seenIds = new Set();
-  for (const temple of temples) {
-    const templeId = temple.id?.toString();
-    if (!templeId) continue;
-    if (!seenIds.has(templeId)) {
-      seenIds.add(templeId);
-      uniqueTemples.push(temple);
-    }
-  }
-  return uniqueTemples;
-};
-
-// Store-backed fetch per tenant with fallback
-const fetchTemplesForTenant = async (tenantId) => {
-  try {
-    if (templeStore.clearTemples) templeStore.clearTemples();
-    else templeStore.temples = [];
-
-    const originalTenantId = localStorage.getItem('current_tenant_id');
-    localStorage.setItem('current_tenant_id', String(tenantId));
-    localStorage.setItem('X-Tenant-ID', String(tenantId));
-
-    try {
-      await templeStore.fetchDirectByTenant(tenantId); // may try /v1/entities/by-creator and fail 403
-      if ((templeStore.temples || []).length === 0) {
-        await templeStore.fetchTemples(tenantId); // fallback to /v1/entities?tenant_id=... which succeeds
-      }
-    } catch {
-      await templeStore.fetchTemples(tenantId);
-    }
-
-    if (originalTenantId) localStorage.setItem('current_tenant_id', originalTenantId);
-    else localStorage.removeItem('current_tenant_id');
-    localStorage.removeItem('X-Tenant-ID');
-
-    const templesWithTenantId = (templeStore.temples || []).map(t => ({
-      ...t,
-      sourceTenantId: String(tenantId),
-    }));
-    return templesWithTenantId;
-  } catch (e) {
-    return [];
-  }
-};
-
-// Direct API fetch with JSON guard
-const fetchTemplesDirectly = async (tenantId) => {
-  if (!tenantId) return [];
-  try {
-    const headers = {
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
-      'X-Tenant-ID': String(tenantId),
-    };
-    // Use API base to avoid SPA HTML responses in dev
-    const url = `/api/v1/entities?tenant_id=${tenantId}&_=${Date.now()}`;
-    const response = await fetch(url, { method: 'GET', headers });
-    if (!response.ok) {
-      return [];
-    }
-    const ct = response.headers.get('content-type') || '';
-    if (!ct.includes('application/json')) {
-      // Don’t attempt JSON parse on HTML/text
-      return [];
-    }
-    const data = await response.json();
-    let temples = Array.isArray(data) ? data :
-                  data.data ? data.data :
-                  data.entities ? data.entities :
-                  data.items ? data.items : [];
-    const filtered = temples
-      .filter(t => {
-        const createdBy = String(t.created_by || t.createdBy || '');
-        const templeTenantId = String(t.tenant_id || t.tenantId || '');
-        return createdBy === String(tenantId) || templeTenantId === String(tenantId);
-      })
-      .map(t => ({ ...t, sourceTenantId: String(tenantId) }));
-    return filtered;
-  } catch {
-    return [];
-  }
-};
-
 // Lifecycle
 onMounted(async () => {
+  console.log('Temple Register Report mounted');
+  console.log('fromSuperadmin:', fromSuperadmin.value);
+  console.log('Tenant IDs from URL:', tenantIds.value);
+  console.log('Effective tenant ID:', effectiveTenantId.value);
+  console.log('Route params:', route.params);
+  console.log('User store:', userStore.user);
+  console.log('Current X-Tenant-ID header:', api.defaults.headers.common['X-Tenant-ID']);
+  
   initializeDates();
+  
+  // Validate tenant ID before proceeding
+  if (!effectiveTenantId.value) {
+    errorMessage.value = 'No valid tenant ID found. Please check your access permissions.';
+    return;
+  }
+  
+  // Always clear temple data first before fetching
+  templeStore.clearTempleData();
+  
+  // Then fetch temples fresh
+  await fetchTemples();
+});
 
-  const currentTenantId = tenantIds.value;
+// Watch for changes in effectiveTenantId
+watch(effectiveTenantId, async (newVal, oldVal) => {
+  if (newVal !== oldVal && newVal) {
+    console.log('Tenant ID changed, refetching temples:', newVal);
+    templeStore.clearTempleData();
+    await fetchTemples();
+  }
+});
 
-  if (fromSuperadmin.value && tenantIds.value.length > 1) {
-    let collectedTemples = [];
-    for (const tid of tenantIds.value) {
-      const viaStore = await fetchTemplesForTenant(tid);
-      if (viaStore.length > 0) {
-        collectedTemples.push(...viaStore);
-        continue;
-      }
-      const direct = await fetchTemplesDirectly(tid);
-      collectedTemples.push(...direct);
-    }
-    allTemples.value = deduplicateTemplesByID(collectedTemples);
-    if (filteredTemples.value.length === 0) {
-      errorMessage.value = 'No approved temples found for the selected tenants.';
-    }
-  } else {
-    try {
-      if (!currentTenantId) {
-        errorMessage.value = 'Could not determine your tenant ID. Please refresh or contact support.';
-        return;
-      }
-      const directResult = await fetchTemplesDirectly(currentTenantId);
-      if (directResult.length > 0) {
-        templeStore.temples = directResult;
-      } else {
-        await templeStore.fetchDirectByTenant(currentTenantId);
-        if ((templeStore.temples || []).length === 0) {
-          await templeStore.fetchTemples(currentTenantId);
-        }
-      }
-      if (filteredTemples.value.length === 0) {
-        errorMessage.value = 'Could not load temples for your tenant. Please try again later.';
-      }
-    } catch {
-      errorMessage.value = 'Failed to load temple data. Some features may not work correctly.';
-    }
+// Watch for route changes
+watch(() => route.params.tenantId, async (newTenantId, oldTenantId) => {
+  if (newTenantId !== oldTenantId && newTenantId) {
+    console.log('Route tenant ID changed:', newTenantId);
+    templeStore.clearTempleData();
+    await fetchTemples();
   }
 });
 
 // React to tenant multi-select changes
-watch(() => route.query.tenants, async () => {
-  if (fromSuperadmin.value && tenantIds.value.length > 1) {
-    let collectedTemples = [];
-    for (const tid of tenantIds.value) {
-      const viaStore = await fetchTemplesForTenant(tid);
-      if (viaStore.length > 0) {
-        collectedTemples.push(...viaStore);
-        continue;
-      }
-      const direct = await fetchTemplesDirectly(tid);
-      collectedTemples.push(...direct);
-    }
-    allTemples.value = deduplicateTemplesByID(collectedTemples);
-    errorMessage.value = filteredTemples.value.length === 0
-      ? 'No approved temples found for the selected tenants.'
-      : '';
+watch(() => route.query.tenants, async (newTenants, oldTenants) => {
+  if (newTenants !== oldTenants && newTenants) {
+    console.log('Query tenants changed:', newTenants);
+    templeStore.clearTempleData();
+    await fetchTemples();
     selectedTemple.value = 'all';
   }
 });

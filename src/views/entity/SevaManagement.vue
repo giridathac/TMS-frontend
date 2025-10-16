@@ -12,17 +12,8 @@
             </p>
           </div>
           <div class="flex gap-3">
-            <!-- View Toggle Buttons -->
+           <!-- View Toggle Buttons -->
             <div class="flex bg-gray-100 rounded-lg p-1">
-              <button
-                @click="currentView = 'bookings'"
-                :class="currentView === 'bookings' 
-                  ? 'bg-white text-indigo-600 shadow-sm' 
-                  : 'text-gray-500 hover:text-gray-700'"
-                class="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200"
-              >
-                Bookings
-              </button>
               <button
                 @click="currentView = 'sevas'"
                 :class="currentView === 'sevas' 
@@ -32,8 +23,16 @@
               >
                 View Sevas
               </button>
+              <button
+                @click="currentView = 'bookings'"
+                :class="currentView === 'bookings' 
+                  ? 'bg-white text-indigo-600 shadow-sm' 
+                  : 'text-gray-500 hover:text-gray-700'"
+                class="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200"
+              >
+                Bookings
+              </button>
             </div>
-            
             <button
               @click="showCreateForm = true"
               class="inline-flex items-center px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
@@ -840,7 +839,7 @@ const sevaList = ref([])
 const sevaCache = ref({}) // Cache for seva details
 
 // View and filter states
-const currentView = ref('bookings') // 'bookings' or 'sevas'
+const currentView =ref('sevas')  // 'bookings' or 'sevas'
 const loadingSevaCatalog = ref(false)
 const sevaCatalog = ref([])
 const sevaToDelete = ref(null)
@@ -1434,6 +1433,7 @@ const saveSeva = async () => {
       if (result && result.success) {
         await Promise.all([loadSevas(), loadSevaCatalog()])
         showToast(`Seva "${sevaForm.value.name}" created successfully`, 'success')
+         currentView.value = 'sevas' 
         closeForm()
       } else {
         console.error('Create failed:', result)

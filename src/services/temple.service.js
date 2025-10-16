@@ -928,6 +928,11 @@ async toggleTempleStatus(templeId, isActive) {
       }
     }
   },
+  // In your seva.service.js or entity.service.js
+async getEntityDetails(entityId) {
+  const response = await api.get(`/entities/${entityId}`)
+  return response.data
+},
   
 
   async searchTemples(query) {

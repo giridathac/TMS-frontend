@@ -100,7 +100,10 @@
                 Seva
               </th>
               <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Date & Time
+                Seva Booked Date
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Seva Scheduled date
               </th>
               <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
@@ -128,6 +131,10 @@
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm text-gray-900">{{ formatDate(booking.booking_time || booking.BookingTime) }}</div>
                 <div class="text-xs text-gray-500">{{ formatTime(booking.booking_time || booking.BookingTime) }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm text-gray-900">{{ getSevaScheduleDate(booking) }}</div>
+                <div class="text-xs text-gray-500">{{ getSevaScheduleTime(booking) }}</div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <span 
@@ -201,6 +208,14 @@
             <div>
               <p class="text-gray-500">Booking Time</p>
               <p class="font-medium">{{ formatTime(selectedBooking.booking_time || selectedBooking.BookingTime) }}</p>
+            </div>
+            <div>
+              <p class="text-gray-500">Seva Schedule Date</p>
+              <p class="font-medium">{{ getSevaScheduleDate(selectedBooking) }}</p>
+            </div>
+            <div>
+              <p class="text-gray-500">Seva Schedule Time</p>
+              <p class="font-medium">{{ getSevaScheduleTime(selectedBooking) }}</p>
             </div>
             <div>
               <p class="text-gray-500">Amount</p>
@@ -332,6 +347,57 @@ const formatStatus = (status) => {
   return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
 }
 
+// Get seva schedule date and time
+const getSevaScheduleDate = (booking) => {
+  // Check seva object for date field
+  if (booking.seva && booking.seva.date) {
+    return formatDate(booking.seva.date)
+  }
+  
+  // Check if there's a direct schedule_time field
+  if (booking.schedule_time || booking.ScheduleTime) {
+    return formatDate(booking.schedule_time || booking.ScheduleTime)
+  }
+  
+  // Check for time slot information
+  if (booking.time_slot_date || booking.TimeSlotDate) {
+    return formatDate(booking.time_slot_date || booking.TimeSlotDate)
+  }
+  
+  return 'Not scheduled'
+}
+
+const getSevaScheduleTime = (booking) => {
+  // Check seva object for start_time and end_time
+  if (booking.seva) {
+    if (booking.seva.start_time && booking.seva.end_time) {
+      return `${booking.seva.start_time} - ${booking.seva.end_time}`
+    }
+    if (booking.seva.start_time) {
+      return booking.seva.start_time
+    }
+    if (booking.seva.time) {
+      return booking.seva.time
+    }
+  }
+  
+  // Check if there's a direct schedule_time field
+  if (booking.schedule_time || booking.ScheduleTime) {
+    return formatTime(booking.schedule_time || booking.ScheduleTime)
+  }
+  
+  // Check for time slot information
+  if (booking.time_slot || booking.TimeSlot) {
+    return booking.time_slot || booking.TimeSlot
+  }
+  
+  if (booking.time_slot_time || booking.TimeSlotTime) {
+    return formatTime(booking.time_slot_time || booking.TimeSlotTime)
+  }
+  
+  return 'Not scheduled'
+}
+
 // Status styles
 const getStatusClass = (status) => {
   if (!status) return 'bg-gray-100 text-gray-800'
@@ -427,10 +493,41 @@ const fetchSevaBookings = async () => {
   try {
     console.log('Fetching seva bookings for entity:', currentEntityId.value)
     
+    // First fetch the seva catalog to get seva details
+    await sevaStore.fetchSevas({ entity_id: currentEntityId.value })
+    console.log('Seva catalog fetched:', sevaStore.sevas)
+    
     // Pass entity ID to the store method
     await sevaStore.fetchRecentSevas(currentEntityId.value)
+    console.log('Recent sevas before merge:', sevaStore.recentSevas)
     
-    console.log("Fetched seva bookings with entity filtering:", sevaStore.recentSevas)
+    // Merge seva details with bookings
+    if (sevaStore.recentSevas && sevaStore.recentSevas.length > 0) {
+      sevaStore.recentSevas = sevaStore.recentSevas.map(booking => {
+        const sevaId = booking.seva_id || booking.SevaID
+        console.log('Looking for seva with ID:', sevaId)
+        
+        const sevaDetails = sevaStore.sevas.find(s => {
+          console.log('Comparing with seva:', s.id, s.ID)
+          return parseInt(s.id) === parseInt(sevaId) || parseInt(s.ID) === parseInt(sevaId)
+        })
+        
+        console.log('Found seva details:', sevaDetails)
+        
+        if (sevaDetails) {
+          return {
+            ...booking,
+            seva: sevaDetails,
+            seva_name: booking.seva_name || sevaDetails.name,
+            seva_type: booking.seva_type || sevaDetails.seva_type,
+            seva_description: booking.seva_description || sevaDetails.description
+          }
+        }
+        return booking
+      })
+    }
+    
+    console.log("Fetched seva bookings with seva details merged:", sevaStore.recentSevas)
   } catch (err) {
     console.error('Error fetching seva bookings:', err)
     error.value = err.message || 'Failed to load seva bookings'

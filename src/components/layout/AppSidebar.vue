@@ -188,6 +188,19 @@
           </svg>
           Dashboard
         </router-link>
+<router-link 
+  to="/devotee/temple-selection" 
+  class="flex items-center px-3 py-2 text-sm font-medium rounded-md" 
+  :class="isActiveRoute('/devotee/temple-selection') ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-gray-50'" 
+  @click="closeMobileMenu"
+>
+  <!-- Temple Icon -->
+  <svg class="mr-3 h-5 w-5" :class="isActiveRoute('/devotee/temple-selection') ? 'text-indigo-500' : 'text-gray-400'" fill="currentColor" viewBox="0 0 24 24" stroke="none">
+    <path d="M12 2L2 7h3v13h6V14h2v6h6V7h3L12 2zM12 4.5L18 8v10h-4v-4H10v4H6V8l6-3.5z" />
+  </svg>
+  Temple Profile
+</router-link>
+
 
         <router-link :to="`/entity/${entityId}/devotee/seva-booking`" class="flex items-center px-3 py-2 text-sm font-medium rounded-md" :class="isActiveRoute(`/entity/${entityId}/devotee/seva-booking`) ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-gray-50'" @click="closeMobileMenu">
           <svg class="mr-3 h-5 w-5" :class="isActiveRoute(`/entity/${entityId}/devotee/seva-booking`) ? 'text-indigo-500' : 'text-gray-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -216,6 +229,8 @@
           </svg>
           My Profile
         </router-link>
+ 
+
       </div>
 
       <!-- VOLUNTEER Navigation -->

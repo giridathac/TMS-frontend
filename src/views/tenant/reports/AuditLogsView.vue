@@ -40,12 +40,13 @@
         </div>
       </div>
 
-      <!-- Action Filter -->
+      <!-- Action Filter  IS PENDING WORK WE HIDE NOW -->
+       <!--
       <div class="mb-4">
         <label class="block text-gray-700 font-medium mb-2">Action Type</label>
         <select v-model="filters.action" @change="fetchPreview" :disabled="loading || downloading" class="w-full px-3 py-2 border border-gray-300 rounded-md">
           <option value="">All Actions</option>
-          <!-- Auth Module Actions -->
+          <!-- Auth Module Actions 
           <optgroup label="Authentication">
             <option value="REGISTRATION_SUCCESS">Registration Success</option>
             <option value="REGISTRATION_FAILED">Registration Failed</option>
@@ -59,22 +60,22 @@
             <option value="PASSWORD_RESET_FAILED">Password Reset Failed</option>
           </optgroup>
           
-          <!-- Entity Module Actions -->
+          <!-- Entity Module Actions 
           <optgroup label="Entity">
             <option value="TEMPLE_CREATED">Temple Created</option>
             <option value="TEMPLE_UPDATED">Temple Updated</option>
             <option value="TEMPLE_CREATE_FAILED">Temple Create Failed</option>
             <option value="TEMPLE_UPDATE_FAILED">Temple Update Failed</option>
           </optgroup>
-          
-          <!-- Events Module Actions -->
+          -->
+          <!-- Events Module Actions 
           <optgroup label="Events">
             <option value="EVENT_CREATED">Event Created</option>
             <option value="EVENT_UPDATED">Event Updated</option>
             <option value="EVENT_DELETED">Event Deleted</option>
-          </optgroup>
+          </optgroup>-->
           
-          <!-- Seva Module Actions -->
+          <!-- Seva Module Actions 
           <optgroup label="Seva">
             <option value="SEVA_CREATED">Seva Created</option>
             <option value="SEVA_UPDATED">Seva Updated</option>
@@ -82,16 +83,16 @@
             <option value="SEVA_BOOKING_APPROVED">Seva Booking Approved</option>
             <option value="SEVA_BOOKING_REJECTED">Seva Booking Rejected</option>
           </optgroup>
-          
-          <!-- Donations Module Actions -->
+          -->
+          <!-- Donations Module Actions 
           <optgroup label="Donations">
             <option value="DONATION_INITIATED">Donation Initiated</option>
             <option value="DONATION_SUCCESS">Donation Success</option>
             <option value="DONATION_FAILED">Donation Failed</option>
             <option value="DONATION_VERIFICATION_FAILED">Donation Verification Failed</option>
           </optgroup>
-          
-          <!-- Notification Module Actions -->
+-->
+          <!-- Notification Module Actions -
           <optgroup label="Notifications">
             <option value="TEMPLATE_CREATED">Template Created</option>
             <option value="TEMPLATE_UPDATED">Template Updated</option>
@@ -100,16 +101,16 @@
             <option value="SMS_SENT">SMS Sent</option>
             <option value="WHATSAPP_SENT">WhatsApp Sent</option>
           </optgroup>
-          
-          <!-- User Profile Module Actions -->
+          -->
+          <!-- User Profile Module Actions --
           <optgroup label="User Profile">
             <option value="PROFILE_CREATED">Profile Created</option>
             <option value="PROFILE_UPDATED">Profile Updated</option>
             <option value="DEVOTEE_JOINED_TEMPLE">Devotee Joined Temple</option>
             <option value="VOLUNTEER_JOINED_TEMPLE">Volunteer Joined Temple</option>
           </optgroup>
-          
-          <!-- Reports Module Actions -->
+          -->
+          <!-- Reports Module Actions --
           <optgroup label="Reports">
             <option value="DEVOTEE_BIRTHDAYS_REPORT_VIEWED">Birthday Report Viewed</option>
             <option value="DEVOTEE_BIRTHDAYS_REPORT_DOWNLOADED">Birthday Report Downloaded</option>
@@ -119,9 +120,9 @@
             <option value="TEMPLE_ACTIVITIES_REPORT_DOWNLOADED">Activities Report Downloaded</option>
           </optgroup>
         </select>
-      </div>
+      </div> --> 
 
-      <!-- Status Filter -->
+      <!-- Status Filter --
       <div class="mb-4">
         <label class="block text-gray-700 font-medium mb-2">Status</label>
         <div class="flex space-x-2">
@@ -138,7 +139,7 @@
             {{ status.label }}
           </button>
         </div>
-      </div>
+      </div> -->
 
       <!-- Date Range -->
       <div class="mb-4">

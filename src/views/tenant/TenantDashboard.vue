@@ -254,6 +254,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import TempleApprovalStatus from '@/components/temple/TempleApprovalStatus.vue'
 
+const selectedSection = ref('dashboard') 
 const router = useRouter()
 const route = useRoute()
 const templeStore = useTempleStore()

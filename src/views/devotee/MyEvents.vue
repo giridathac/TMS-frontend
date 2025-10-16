@@ -31,7 +31,8 @@
           >
             <option value="all">All Events</option>
             <option value="upcoming">Upcoming</option>
-            <option value="past">Past Events</option>
+            <option value="ongoing">Ongoing</option>
+            <option value="completed">Completed</option>
           </select>
         </div>
       </div>
@@ -206,16 +207,9 @@ import {
   Clock, 
   MapPin, 
   Search, 
-  //List, 
   X,
-  //Users
 } from 'lucide-vue-next'
-//import { apiClient } from '@/plugins/axios'
 import eventService from '@/services/event.service'
-
-// Layout Components
-//import DashboardLayout from '@/layouts/DashboardLayout.vue'
-//import AppBreadcrumb from '@/components/layout/AppBreadcrumb.vue'
 
 // Base Components
 import BaseCard from '@/components/common/BaseCard.vue'
@@ -225,10 +219,6 @@ import BaseModal from '@/components/common/BaseModal.vue'
 
 // Dashboard Components
 import WelcomeBanner from '@/components/dashboard/WelcomeBanner.vue'
-import DashboardWidget from '@/components/dashboard/DashboardWidget.vue'
-
-// Event Components
-//import EventCard from '@/components/event/EventCard.vue'
 
 const route = useRoute()
 const { currentUser } = useAuth()
@@ -265,11 +255,14 @@ const filteredEvents = computed(() => {
     case 'upcoming':
       filtered = filtered.filter(event => event.status === 'upcoming')
       break
+    case 'ongoing':
+      filtered = filtered.filter(event => event.status === 'ongoing')
+      break
+    case 'completed':
+      filtered = filtered.filter(event => event.status === 'completed')
+      break
     case 'attending':
       filtered = filtered.filter(event => userRSVPs.value.has(event.id))
-      break
-    case 'past':
-      filtered = filtered.filter(event => event.status === 'past')
       break
     case 'all':
     default:
@@ -280,24 +273,6 @@ const filteredEvents = computed(() => {
   return filtered
 })
 
-/*
-const rsvpStats = computed(() => {
-  const attending = events.value.filter(event => 
-    userRSVPs.value.has(event.id) && event.status === 'upcoming'
-  ).length
-  
-  const attended = events.value.filter(event => 
-    userRSVPs.value.has(event.id) && event.status === 'past'
-  ).length
-  
-  const upcoming = events.value.filter(event => 
-    event.status === 'upcoming'
-  ).length
-
-  return { attending, attended, upcoming }
-})
-*/
-
 // Methods
 const loadEvents = async () => {
   try {
@@ -307,14 +282,49 @@ const loadEvents = async () => {
     const data = await eventService.getUpcomingEvents();
     console.log("🔍 Events Response:", data);
     
-    const today = new Date();
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     // Map API response to our UI model
     events.value = (Array.isArray(data) ? data : []).map(event => {
       const eventDate = new Date(event.event_date);
+      const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+      
       let status = 'upcoming';
+      
       if (!isNaN(eventDate)) {
-        status = eventDate < today ? 'past' : 'upcoming';
+        // Determine if event is completed, ongoing, or upcoming
+        if (eventDateOnly < today) {
+          status = 'completed';
+        } else if (eventDateOnly.getTime() === today.getTime()) {
+          // Event is today - check if it's ongoing or upcoming based on time
+          if (event.event_time) {
+            try {
+              const eventTimeDate = new Date(event.event_time);
+              const eventHours = eventTimeDate.getUTCHours();
+              const eventMinutes = eventTimeDate.getUTCMinutes();
+              
+              const currentHours = now.getHours();
+              const currentMinutes = now.getMinutes();
+              
+              // If current time is past event time, consider it ongoing
+              // (You can adjust this logic based on event duration)
+              if (currentHours > eventHours || 
+                  (currentHours === eventHours && currentMinutes >= eventMinutes)) {
+                status = 'ongoing';
+              } else {
+                status = 'upcoming';
+              }
+            } catch (e) {
+              // If time parsing fails, default to ongoing for today's events
+              status = 'ongoing';
+            }
+          } else {
+            status = 'ongoing'; // If no time specified, assume ongoing
+          }
+        } else {
+          status = 'upcoming';
+        }
       }
 
       return {
@@ -392,7 +402,8 @@ const canRSVP = (event) => {
 }
 
 const getEventStatus = (event) => {
-  if (event.status === 'past') return 'Completed';
+  if (event.status === 'completed') return 'Completed';
+  if (event.status === 'ongoing') return 'Ongoing';
   if (event.maxAttendees && event.attendees >= event.maxAttendees) return 'Full';
   return 'Open';
 }
@@ -404,6 +415,8 @@ const getEventStatusClass = (event) => {
   switch (status) {
     case 'Completed':
       return `${baseClasses} bg-gray-100 text-gray-800`;
+    case 'Ongoing':
+      return `${baseClasses} bg-blue-100 text-blue-800`;
     case 'Full':
       return `${baseClasses} bg-red-100 text-red-800`;
     default:
@@ -435,36 +448,44 @@ const formatDate = (dateString) => {
 const formatTime = (timeString) => {
   if (!timeString) return 'Time not specified';
   
-  // Handle ISO-formatted datetime strings
-  if (timeString.includes('T')) {
-    const date = new Date(timeString);
-    if (!isNaN(date.getTime())) {
-      return date.toLocaleTimeString('en-IN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      });
-    }
-  }
-  
-  // Handle time-only strings (HH:MM or HH:MM:SS)
-  if (timeString.includes(':')) {
-    const timeParts = timeString.split(':');
-    if (timeParts.length >= 2) {
-      const hours = parseInt(timeParts[0], 10);
-      const minutes = parseInt(timeParts[1], 10);
-      
-      if (!isNaN(hours) && !isNaN(minutes)) {
-        const date = new Date();
-        date.setHours(hours, minutes, 0);
+  try {
+    // Handle ISO datetime format (e.g., "0000-01-01T10:52:00Z")
+    // Extract just the time portion
+    if (typeof timeString === 'string' && timeString.includes('T')) {
+      const date = new Date(timeString);
+      if (!isNaN(date.getTime())) {
+        // Get hours and minutes from the Date object
+        let hours = date.getUTCHours(); // Use UTC to avoid timezone issues
+        const minutes = date.getUTCMinutes();
         
-        return date.toLocaleTimeString('en-IN', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
+        // Convert to 12-hour format
+        const period = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12 || 12; // Convert 0 to 12 for midnight
+        
+        // Format with leading zeros for minutes
+        return `${hours}:${minutes.toString().padStart(2, '0')} ${period}`;
       }
     }
+    
+    // Handle time-only strings (HH:MM:SS or HH:MM format)
+    if (typeof timeString === 'string' && timeString.includes(':')) {
+      const timeParts = timeString.split(':');
+      if (timeParts.length >= 2) {
+        let hours = parseInt(timeParts[0], 10);
+        const minutes = parseInt(timeParts[1], 10);
+        
+        if (!isNaN(hours) && !isNaN(minutes) && hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) {
+          // Convert to 12-hour format
+          const period = hours >= 12 ? 'PM' : 'AM';
+          hours = hours % 12 || 12; // Convert 0 to 12 for midnight
+          
+          // Format with leading zeros
+          return `${hours}:${minutes.toString().padStart(2, '0')} ${period}`;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error formatting time:', error, timeString);
   }
   
   // Return the original if we can't parse it
@@ -475,10 +496,12 @@ const getEmptyStateMessage = () => {
   switch (selectedFilter.value) {
     case 'upcoming':
       return 'No upcoming events found. Check back later for new events.';
+    case 'ongoing':
+      return 'No events are currently ongoing.';
     case 'attending':
       return 'You haven\'t RSVP\'d to any events yet. Browse upcoming events to participate.';
-    case 'past':
-      return 'No past events to display.';
+    case 'completed':
+      return 'No completed events to display.';
     default:
       return 'No events match your search criteria.';
   }

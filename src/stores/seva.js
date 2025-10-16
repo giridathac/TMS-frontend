@@ -61,6 +61,22 @@ export const useSevaStore = defineStore('seva', () => {
     pending: sevas.value.filter(s => s.status === 'pending').length,
   }))
   
+  const fetchTempleName = async () => {
+  try {
+    const response = await sevaService.getTempleInfo(); // assumes endpoint returns temple info
+    if (response.success && response.data) {
+      console.log('Temple Name:', response.data.name); // or response.data.TempleName
+      return response.data.name;
+    } else {
+      console.error('Failed to fetch temple info:', response.error);
+      return null;
+    }
+  } catch (err) {
+    console.error('Error fetching temple info:', err);
+    return null;
+  }
+}
+
   // Actions - Connect to backend API
   
   /**
